@@ -57,7 +57,7 @@ static NSString *kContentTitleKey, *kContentImageKey, *kItemSizeSliderPositionKe
     [nc addObserver:self selector:@selector(detectedNotification:) name:CNGridViewRightMouseButtonClickedOnItemNotification object:nil];
 
     /// insert some content
-    for (int i=0; i<1000; i++) {
+    for (int i=0; i<2; i++) {
         [self.items addObject:[NSDictionary dictionaryWithObjectsAndKeys:
                                [NSImage imageNamed:NSImageNameComputer], kContentImageKey,
                                NSImageNameComputer, kContentTitleKey,
@@ -140,7 +140,44 @@ static NSString *kContentTitleKey, *kContentImageKey, *kItemSizeSliderPositionKe
     [self.gridView selectAllItems];
 }
 
+- (IBAction)testAddItem:(id)sender {
 
+    NSUInteger count = self.items.count;
+    NSUInteger index = count/2;
+    NSString* title = [NSString stringWithFormat:@"new %lu", count];
+    [self.items insertObject:[NSDictionary dictionaryWithObjectsAndKeys:
+                               [NSImage imageNamed:NSImageNameFolderBurnable], kContentImageKey,
+                               title, kContentTitleKey,
+                               nil]
+                     atIndex:index];
+//    [self.items addObject:[NSDictionary dictionaryWithObjectsAndKeys:
+//                               [NSImage imageNamed:NSImageNameFolderBurnable], kContentImageKey,
+//                               title, kContentTitleKey,
+//                               nil]];
+    
+    [self.gridView insertItemAtIndex:index animated:YES];
+    
+
+}
+
+- (IBAction)testAddItems:(id)sender {
+
+    NSUInteger count = self.items.count;
+    NSUInteger index = count/2;
+    NSUInteger len = 5;
+    for( NSUInteger i = 0; i < len; i++ ) {
+        NSString* title = [NSString stringWithFormat:@"new %lu", count+i];
+        [self.items insertObject:[NSDictionary dictionaryWithObjectsAndKeys:
+                                   [NSImage imageNamed:NSImageNameFolderBurnable], kContentImageKey,
+                                   title, kContentTitleKey,
+                                   nil]
+                         atIndex:index];
+    }
+
+    NSIndexSet* indexSet = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(index, len)];
+    [self.gridView insertItemsAtIndexes:indexSet animated:YES];
+    
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark - CNGridView DataSource
@@ -162,7 +199,7 @@ static NSString *kContentTitleKey, *kContentImageKey, *kItemSizeSliderPositionKe
     item.selectionLayout = self.selectionLayout;
 
     NSDictionary *contentDict = [self.items objectAtIndex:index];
-    item.itemTitle = [NSString stringWithFormat:@"Item: %lu", index];
+    item.itemTitle = [contentDict objectForKey:kContentTitleKey]; // [NSString stringWithFormat:@"Item: %lu", index];
     item.itemImage = [contentDict objectForKey:kContentImageKey];
 
     return item;

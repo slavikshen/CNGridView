@@ -303,7 +303,8 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     
     NSMutableIndexSet *visibleItemIndexes = [NSMutableIndexSet indexSetWithIndexesInRange:visibleItemRange];
 
-    [visibleItemIndexes removeIndexes:[self indexesForVisibleItems]];
+    NSIndexSet* currentVisibleIndexes = [self indexesForVisibleItems];
+    [visibleItemIndexes removeIndexes:currentVisibleIndexes];
     
     /// update all visible items
     [visibleItemIndexes enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL *stop) {
@@ -477,6 +478,132 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     [self refreshGridViewAnimated:animated];
 }
 
+
+- (void)insertItemAtIndex:(NSInteger)index animated:(BOOL)animated {
+
+    NSUInteger count = keyedVisibleItems.count;
+    if( count ) {
+        NSMutableArray* affected = [NSMutableArray arrayWithCapacity:count];
+        // adjust the index
+        [[keyedVisibleItems allValues] enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+            CNGridViewItem *item = (CNGridViewItem *)obj;
+            NSUInteger i = item.index;
+            if( i >= index ) {
+                NSUInteger acount = affected.count;
+                NSUInteger insertPos = acount;
+                for( NSUInteger j = 0; j < acount; j++ ) {
+                    CNGridViewItem *p = [affected objectAtIndex:j];
+                    if( i > p.index ) {
+                        insertPos = j;
+                        break;
+                    }
+                }
+                [affected insertObject:item atIndex:insertPos];
+            }
+        }];
+
+        if( affected.count ) {
+            for( CNGridViewItem* item in affected ) {
+                NSInteger index = item.index;
+                NSInteger newIndex = index+1;
+
+                [keyedVisibleItems removeObjectForKey:@(index)];
+                [keyedVisibleItems setObject:item forKey:@(newIndex)];
+                item.index = newIndex;
+            }
+            if( animated ) {
+                [[NSAnimationContext currentContext] setDuration:(animated ? 0.15 : 0.0)];
+                [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
+                    for( CNGridViewItem* item in affected ) {
+                        NSInteger index = item.index;
+                        NSRect newRect = [self rectForItemAtIndex:index];
+                        [[item animator] setFrame:newRect];
+                    }
+                } completionHandler:nil];
+            } else {
+                for( CNGridViewItem* item in affected ) {
+                    NSInteger index = item.index;
+                    NSRect newRect = [self rectForItemAtIndex:index];
+                    [item setFrame:newRect];
+                }
+            }   
+        }
+    }
+    numberOfItems++;
+    isInitialCall = YES;
+    [self refreshGridViewAnimated:animated];
+
+}
+
+- (void)insertItemsAtIndexes:(NSIndexSet*)indexes animated:(BOOL)animated {
+
+    NSUInteger first = indexes.firstIndex;
+    if( NSNotFound == first ) { return; }
+
+    
+    NSUInteger count = keyedVisibleItems.count;
+    if( count ) {
+        NSMutableArray* affected = [NSMutableArray arrayWithCapacity:count];
+        // adjust the index
+        [[keyedVisibleItems allValues] enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+            CNGridViewItem *item = (CNGridViewItem *)obj;
+            NSUInteger i = item.index;
+            if( i >= first ) {
+                NSUInteger acount = affected.count;
+                NSUInteger insertPos = acount;
+                for( NSUInteger j = 0; j < acount; j++ ) {
+                    CNGridViewItem *p = [affected objectAtIndex:j];
+                    if( i > p.index ) {
+                        insertPos = j;
+                        break;
+                    }
+                }
+                [affected insertObject:item atIndex:insertPos];
+            }
+        }];
+
+        if( affected.count ) {
+            for( CNGridViewItem* item in affected ) {
+                NSInteger index = item.index;
+                
+                // check the number of new index before the index;
+                __block NSUInteger ncount = 0;
+                [indexes enumerateRangesUsingBlock:^(NSRange range, BOOL *stop) {
+                    if( range.location < index ) {
+                        ncount += range.length;
+                    }
+                }];
+                
+                NSInteger newIndex = index+ncount;
+
+                [keyedVisibleItems removeObjectForKey:@(index)];
+                [keyedVisibleItems setObject:item forKey:@(newIndex)];
+                item.index = newIndex;
+            }
+            if( animated ) {
+                [[NSAnimationContext currentContext] setDuration:(animated ? 0.15 : 0.0)];
+                [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
+                    for( CNGridViewItem* item in affected ) {
+                        NSInteger index = item.index;
+                        NSRect newRect = [self rectForItemAtIndex:index];
+                        [[item animator] setFrame:newRect];
+                    }
+                } completionHandler:nil];
+            } else {
+                for( CNGridViewItem* item in affected ) {
+                    NSInteger index = item.index;
+                    NSRect newRect = [self rectForItemAtIndex:index];
+                    [item setFrame:newRect];
+                }
+            }   
+        }
+    }
+    
+    numberOfItems += indexes.count;
+    isInitialCall = YES;
+    [self refreshGridViewAnimated:animated];
+
+}
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

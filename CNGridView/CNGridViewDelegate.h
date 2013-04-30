@@ -30,9 +30,8 @@
 
 #import <Foundation/Foundation.h>
 
-
 @class CNGridView;
-@class CNGridViewItem;
+@class CNGridViewItemBase;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -113,7 +112,7 @@
 /**
  ...
  */
-- (CNGridViewItem *)gridView:(CNGridView *)gridView itemAtIndex:(NSInteger)index inSection:(NSInteger)section;
+- (CNGridViewItemBase *)gridView:(CNGridView *)gridView itemAtIndex:(NSInteger)index inSection:(NSInteger)section;
 
 
 @optional

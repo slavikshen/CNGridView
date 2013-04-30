@@ -38,33 +38,26 @@
 #endif
 
 
-static CGSize kDefaultItemSize;
-
+NSString* const kCNDefaultItemIdentifier = @"CNGridViewItem";
 
 /// Notifications
 extern NSString *CNGridViewSelectAllItemsNotification;
 extern NSString *CNGridViewDeSelectAllItemsNotification;
 
+@implementation CNGridViewItemBase
 
-@interface CNGridViewItem ()
-@property (strong) NSImageView *itemImageView;
-@property (strong) CNGridViewItemLayout *currentLayout;
-@end
-
-@implementation CNGridViewItem
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma mark - Initialzation
-
-+ (void)initialize
-{
-    kCNDefaultItemIdentifier = @"CNGridViewItem";
-    kDefaultItemSize         = NSMakeSize(310, 225);
-}
 
 + (CGSize)defaultItemSize
 {
-    return kDefaultItemSize;
+    return NSMakeSize(310, 225);
+}
+
+
+-(void)dealloc
+{
+    NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+    [nc removeObserver:self name:CNGridViewSelectAllItemsNotification object:nil];
+    [nc removeObserver:self name:CNGridViewDeSelectAllItemsNotification object:nil];
 }
 
 - (id)init
@@ -85,64 +78,24 @@ extern NSString *CNGridViewDeSelectAllItemsNotification;
     return self;
 }
 
-- (id)initWithLayout:(CNGridViewItemLayout *)layout reuseIdentifier:(NSString *)reuseIdentifier
-{
-    self = [self init];
-    if (self) {
-        [self initProperties];
-        _defaultLayout = layout;
-        _currentLayout = _defaultLayout;
-        _reuseIdentifier = reuseIdentifier;
-    }
-    return self;
-}
 
 - (void)initProperties
 {
     /// Reusing Grid View Items
-    _reuseIdentifier = kCNDefaultItemIdentifier;
+    self.reuseIdentifier = kCNDefaultItemIdentifier;
+    self.index = CNItemIndexUndefined;
 
-    /// Item Default Content
-    _itemImage = nil;
-    _itemTitle = @"";
-    _index = CNItemIndexUndefined;
-
-    /// Grid View Item Layout
-    _defaultLayout = [CNGridViewItemLayout defaultLayout];
-    _hoverLayout = [CNGridViewItemLayout defaultLayout];
-    _selectionLayout = [CNGridViewItemLayout defaultLayout];
-    _currentLayout = _defaultLayout;
-    _useLayout = YES;
-
-    /// Selection and Hovering
-    _selected = NO;
-    _selectable = YES;
-    _hovered = NO;
+//    /// Selection and Hovering
+//    _selected = NO;
+//    _selectable = YES;
+//    _hovered = NO;
 
     NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
     [nc addObserver:self selector:@selector(selectAll:) name:CNGridViewSelectAllItemsNotification object:nil];
     [nc addObserver:self selector:@selector(deSelectAll:) name:CNGridViewDeSelectAllItemsNotification object:nil];
 }
 
-- (BOOL)isFlipped
-{
-    return YES;
-}
-
--(void)dealloc
-{
-    NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
-    [nc removeObserver:self name:CNGridViewSelectAllItemsNotification object:nil];
-    [nc removeObserver:self name:CNGridViewDeSelectAllItemsNotification object:nil];
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma mark - Reusing Grid View Items
-
-- (void)prepareForReuse
-{
-    self.itemImage = nil;
-    self.itemTitle = @"";
+- (void)prepareForReuse {
     self.index = CNItemIndexUndefined;
     self.selected = NO;
     self.selectable = YES;
@@ -150,6 +103,82 @@ extern NSString *CNGridViewDeSelectAllItemsNotification;
 }
 
 
+- (BOOL)isReuseable
+{
+    return ( self.selected ? NO : YES);
+}
+
+
+- (void)selectAll:(NSNotification *)notification
+{
+    [self setSelected:YES];
+}
+
+- (void)deSelectAll:(NSNotification *)notification
+{
+    [self setSelected:NO];
+}
+
+
+@end
+
+
+@interface CNGridViewItem ()
+@property (strong) NSImageView *itemImageView;
+@property (strong) CNGridViewItemLayout *currentLayout;
+@end
+
+@implementation CNGridViewItem
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark - Initialzation
+
+
+- (id)initWithLayout:(CNGridViewItemLayout *)layout reuseIdentifier:(NSString *)reuseIdentifier
+{
+    self = [self init];
+    if (self) {
+        _defaultLayout = layout;
+        _currentLayout = _defaultLayout;
+        self.reuseIdentifier = reuseIdentifier;
+    }
+    return self;
+}
+
+- (void)initProperties
+{
+    [super initProperties];
+
+    /// Item Default Content
+    _itemImage = nil;
+    _itemTitle = @"";
+    /// Grid View Item Layout
+    _defaultLayout = [CNGridViewItemLayout defaultLayout];
+    _hoverLayout = [CNGridViewItemLayout defaultLayout];
+    _selectionLayout = [CNGridViewItemLayout defaultLayout];
+    _currentLayout = _defaultLayout;
+    _useLayout = YES;
+
+}
+
+- (BOOL)isFlipped
+{
+    return YES;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark - Reusing Grid View Items
+
+- (void)prepareForReuse
+{
+
+    [super prepareForReuse];
+    
+    self.itemImage = nil;
+    self.itemTitle = @"";
+
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark - ViewDrawing
@@ -225,38 +254,22 @@ extern NSString *CNGridViewDeSelectAllItemsNotification;
     [self setSelected:NO];
 }
 
-- (void)selectAll:(NSNotification *)notification
-{
-    [self setSelected:YES];
-}
-
-- (void)deSelectAll:(NSNotification *)notification
-{
-    [self setSelected:NO];
-}
-
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark - Accessors
 
 - (void)setHovered:(BOOL)hovered
 {
-    _hovered = hovered;
-    _currentLayout = (_hovered ? _hoverLayout : (_selected ? _selectionLayout : _defaultLayout));
+    [super setHovered:hovered];
+    _currentLayout = (self.hovered ? _hoverLayout : (self.selected ? _selectionLayout : _defaultLayout));
     [self setNeedsDisplay:YES];
 }
 
 - (void)setSelected:(BOOL)selected
 {
-    _selected = selected;
-    _currentLayout = (_selected ? _selectionLayout : _defaultLayout);
+    [super setSelected:selected];
+    _currentLayout = (self.selected ? _selectionLayout : _defaultLayout);
     [self setNeedsDisplay:YES];
-}
-
-- (BOOL)isReuseable
-{
-    return (_selected ? NO : YES);
 }
 
 - (void)setDefaultLayout:(CNGridViewItemLayout *)defaultLayout

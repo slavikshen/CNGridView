@@ -69,6 +69,14 @@ extern NSString *CNGridViewDeSelectAllItemsNotification;
     return self;
 }
 
+- (id)initWithFrame:(NSRect)frameRect {
+    self = [super initWithFrame:frameRect];
+    if (self) {
+        [self initProperties];
+    }
+    return self;
+}
+
 - (id)initWithCoder:(NSCoder *)aDecoder
 {
     self = [super initWithCoder:aDecoder];

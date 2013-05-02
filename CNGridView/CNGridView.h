@@ -226,6 +226,8 @@ typedef BOOL (^CNGridViewSelectItem)(CNGridViewItem *item);
 
 - (void)reloadDataAnimated:(BOOL)animated;
 
+#pragma mark - animating KVO changes
+
 - (void)insertItemAtIndex:(NSInteger)index animated:(BOOL)animated;
 - (void)insertItemsAtIndexes:(NSIndexSet*)indexes animated:(BOOL)animated;
 - (void)reloadItemsAtIndexes:(NSIndexSet*)indexes animated:(BOOL)animated;
@@ -233,5 +235,8 @@ typedef BOOL (^CNGridViewSelectItem)(CNGridViewItem *item);
 
 - (void)beginUpdates;
 - (void)endUpdates;
+
+@property(nonatomic,strong) IBOutlet NSView* headerView;
+@property(nonatomic,assign) BOOL useCenterAlignment;
 
 @end

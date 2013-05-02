@@ -105,6 +105,9 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     BOOL isInitialCall;
     BOOL mouseHasDragged;
     BOOL abortSelection;
+    
+    CGFloat _contentInset;
+    
 }
 - (void)setupDefaults;
 - (void)updateVisibleRect;
@@ -203,14 +206,27 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
 
     [[self enclosingScrollView] setDrawsBackground:YES];
 
-    NSClipView *clipView = [[self enclosingScrollView] contentView];
-    [clipView setPostsBoundsChangedNotifications:YES];
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(updateVisibleRect)
-                                                 name:NSViewBoundsDidChangeNotification
-                                               object:clipView];
+
 }
 
+- (void)viewWillMoveToSuperview:(NSView *)newSuperview {
+
+    [super viewWillMoveToSuperview:nil];
+    NSClipView *clipView = [[self enclosingScrollView] contentView];
+    if( clipView ) {
+        [[NSNotificationCenter defaultCenter] removeObserver:self name:NSViewBoundsDidChangeNotification object:clipView];
+    }
+    
+    if( [newSuperview isKindOfClass:[NSClipView class]] ) {
+        clipView = (NSClipView*)newSuperview;
+        [clipView setPostsBoundsChangedNotifications:YES];
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(updateVisibleRect)
+                                                     name:NSViewBoundsDidChangeNotification
+                                                   object:clipView];
+    }
+
+}
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -252,14 +268,24 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     }
 }
 
-
-
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark - Private Helper
 
+- (void)_refreshInset {
+
+    if( self.useCenterAlignment ) {
+        NSRect clippedRect  = [self clippedRect];
+        NSUInteger columns  = [self columnsInGridView];
+        _contentInset = floorf((clippedRect.size.width-columns*self.itemSize.width)/2);
+    } else {
+        _contentInset = 0;
+    }
+
+}
+
 - (void)updateVisibleRect
 {
+//    [self _refreshInset];
     [self updateReuseableItems];
     [self updateVisibleItems];
     [self arrangeGridViewItemsAnimated:NO];
@@ -273,6 +299,8 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     [super setFrame:scrollRect];
 
     isInitialCall = YES;
+    
+    [self _refreshInset];
     [self updateReuseableItems];
     [self updateVisibleItems];
     [self arrangeGridViewItemsAnimated:animated];
@@ -285,15 +313,19 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     [[keyedVisibleItems allValues] enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
         CNGridViewItemBase *item = (CNGridViewItemBase *)obj;
         if (!NSLocationInRange(item.index, visibleItemRange) && [item isReuseable]) {
+            NSString* cellID = item.reuseIdentifier;
+            if( nil == cellID ) {
+                cellID = kCNDefaultItemIdentifier;
+            }
             [keyedVisibleItems removeObjectForKey:[NSNumber numberWithUnsignedInteger:item.index]];
             [item removeFromSuperview];
             [item prepareForReuse];
 
-            NSMutableSet *reuseQueue = [reuseableItems objectForKey:item.reuseIdentifier];
+            NSMutableSet *reuseQueue = [reuseableItems objectForKey:cellID];
             if (reuseQueue == nil)
                 reuseQueue = [NSMutableSet set];
             [reuseQueue addObject:item];
-            [reuseableItems setObject:reuseQueue forKey:item.reuseIdentifier];
+            [reuseableItems setObject:reuseQueue forKey:cellID];
         }
     }];
 }
@@ -360,6 +392,7 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
 
         }];
     }
+
 }
 
 - (NSRange)visibleItemRange
@@ -382,10 +415,11 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
 - (NSRect)rectForItemAtIndex:(NSUInteger)index
 {
     NSUInteger columns = [self columnsInGridView];
-    NSRect itemRect = NSMakeRect((index % columns) * self.itemSize.width,
-                                 ((index - (index % columns)) / columns) * self.itemSize.height,
+    NSRect itemRect = NSMakeRect((index % columns) * self.itemSize.width+_contentInset,
+                                 ((index - (index % columns)) / columns) * self.itemSize.height+_contentInset,
                                  self.itemSize.width,
                                  self.itemSize.height);
+    
     return itemRect;
 }
 
@@ -435,12 +469,12 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
 {
     NSPoint point = [self convertPoint:location fromView:nil];
     NSUInteger indexForItemAtLocation;
-    if (point.x > (self.itemSize.width * [self columnsInGridView])) {
+    if (point.x > (self.itemSize.width * [self columnsInGridView] +_contentInset)) {
         indexForItemAtLocation = NSNotFound;
 
     } else {
-        NSUInteger currentColumn = floor(point.x / self.itemSize.width);
-        NSUInteger currentRow = floor(point.y / self.itemSize.height);
+        NSUInteger currentColumn = floor( (point.x-_contentInset)/ self.itemSize.width);
+        NSUInteger currentRow = floor( (point.y-_contentInset) / self.itemSize.height);
         indexForItemAtLocation = currentRow * [self columnsInGridView] + currentColumn;
         indexForItemAtLocation = (indexForItemAtLocation > (numberOfItems - 1) ? NSNotFound : indexForItemAtLocation);
     }

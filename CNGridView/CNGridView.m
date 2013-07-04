@@ -111,7 +111,7 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
 }
 - (void)setupDefaults;
 - (void)updateVisibleRect;
-- (void)refreshGridViewAnimated:(BOOL)animated;
+- (void)refreshGridViewAnimated:(BOOL)animated initialCall:(BOOL)initialCall;
 - (void)updateReuseableItems;
 - (NSIndexSet *)indexesForVisibleItems;
 - (void)arrangeGridViewItemsAnimated:(BOOL)animated;
@@ -236,7 +236,7 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
 {
     if (!NSEqualSizes(_itemSize, itemSize)) {
         _itemSize = itemSize;
-        [self refreshGridViewAnimated:YES];
+        [self refreshGridViewAnimated:YES initialCall:YES];
     }
 }
 
@@ -285,25 +285,31 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
 
 - (void)updateVisibleRect
 {
-//    [self _refreshInset];
     [self updateReuseableItems];
     [self updateVisibleItems];
     [self arrangeGridViewItemsAnimated:NO];
 }
 
-- (void)refreshGridViewAnimated:(BOOL)animated
+- (void)refreshGridViewAnimated:(BOOL)animated initialCall:(BOOL)initialCall
 {
-    NSRect scrollRect = [self frame];
-    scrollRect.size.width = scrollRect.size.width;
-    scrollRect.size.height = [self allOverRowsInGridView] * self.itemSize.height+_contentInset*2;
-    [super setFrame:scrollRect];
+    isInitialCall = initialCall;
 
-    isInitialCall = YES;
-    
+    CGSize size = self.frame.size;
+    CGFloat newHeight = [self allOverRowsInGridView] * self.itemSize.height+_contentInset*2;
+    if( ABS(newHeight-size.height) > 1 ) {
+        size.height = newHeight;
+        [super setFrameSize:size];
+    }
+
     [self _refreshInset];
-    [self updateReuseableItems];
-    [self updateVisibleItems];
-    [self arrangeGridViewItemsAnimated:animated];
+    id s = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [s _refreshInset];
+        [s updateReuseableItems];
+        [s updateVisibleItems];
+        [s arrangeGridViewItemsAnimated:animated];
+    });
+    
 }
 
 - (void)updateReuseableItems
@@ -339,17 +345,18 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     NSIndexSet* currentVisibleIndexes = [self indexesForVisibleItems];
     [visibleItemIndexes removeIndexes:currentVisibleIndexes];
     
+    id s = self;
     /// update all visible items
     [visibleItemIndexes enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL *stop) {
-        CNGridViewItemBase *item = [self gridView:self itemAtIndex:idx inSection:0];
+        CNGridViewItemBase *item = [s gridView:s itemAtIndex:idx inSection:0];
         if (item) {
             item.index = idx;
             if (isInitialCall) {
                 [item setAlphaValue:0.0];
-                [item setFrame:[self rectForItemAtIndex:idx]];
             }
+            item.frame = [s rectForItemAtIndex:idx];
             [keyedVisibleItems setObject:item forKey:[NSNumber numberWithUnsignedInteger:item.index]];
-            [self addSubview:item];
+            [s addSubview:item];
         }
     }];
 }
@@ -371,26 +378,27 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
 
         [[NSAnimationContext currentContext] setDuration:0.35];
         [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
-            [keyedVisibleItems enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
-                [[(CNGridViewItemBase *)obj animator] setAlphaValue:1.0];
+            [keyedVisibleItems enumerateKeysAndObjectsUsingBlock:^(id key, CNGridViewItemBase* obj, BOOL *stop) {
+                if( obj.alphaValue < 1.0f ) {
+                    [[obj animator] setAlphaValue:1.0f];
+                }
             }];
 
-        } completionHandler:^{
-
-        }];
+        } completionHandler:nil];
     }
 
     else if ([keyedVisibleItems count] > 0) {
         [[NSAnimationContext currentContext] setDuration:(animated ? 0.15 : 0.0)];
         [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
-            [keyedVisibleItems enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
-                NSRect newRect = [self rectForItemAtIndex:[(CNGridViewItemBase *)obj index]];
-                [[(CNGridViewItemBase *)obj animator] setFrame:newRect];
+            [keyedVisibleItems enumerateKeysAndObjectsUsingBlock:^(id key, CNGridViewItemBase* obj, BOOL *stop) {
+                CGRect newRect = [self rectForItemAtIndex:[obj index]];
+                CGRect oldRect = obj.frame;
+                if( !CGRectEqualToRect(newRect, oldRect) ) {
+                    [[obj animator] setFrame:newRect];
+                }
             }];
 
-        } completionHandler:^{
-
-        }];
+        } completionHandler:nil];
     }
 
 }
@@ -405,7 +413,7 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     if (clippedRect.origin.y > self.itemSize.height) {
         rangeStart = (ceilf(clippedRect.origin.y / self.itemSize.height) * columns) - columns;
     }
-    NSUInteger rangeLength = MIN(numberOfItems, (columns * rows) + columns);
+    NSUInteger rangeLength = MIN(numberOfItems, columns * rows +columns);
     rangeLength = ((rangeStart + rangeLength) > numberOfItems ? numberOfItems - rangeStart : rangeLength);
 
     NSRange rangeForVisibleRect = NSMakeRange(rangeStart, rangeLength);
@@ -527,7 +535,7 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     }];
     [keyedVisibleItems removeAllObjects];
     [reuseableItems removeAllObjects];
-    [self refreshGridViewAnimated:animated];
+    [self refreshGridViewAnimated:animated initialCall:YES];
 }
 
 
@@ -582,8 +590,7 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
         }
     }
     numberOfItems++;
-    isInitialCall = YES;
-    [self refreshGridViewAnimated:animated];
+    [self refreshGridViewAnimated:animated initialCall:YES];
 
 }
 
@@ -626,7 +633,6 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
                 }];
                 
                 NSInteger newIndex = index+ncount;
-
                 [keyedVisibleItems removeObjectForKey:@(index)];
                 [keyedVisibleItems setObject:item forKey:@(newIndex)];
                 item.index = newIndex;
@@ -651,8 +657,7 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     }
     
     numberOfItems += indexes.count;
-    isInitialCall = YES;
-    [self refreshGridViewAnimated:animated];
+    [self refreshGridViewAnimated:animated initialCall:YES];
 
 }
 
@@ -709,7 +714,7 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     }
     
     isInitialCall = YES;
-    [self refreshGridViewAnimated:animated];
+    [self refreshGridViewAnimated:animated initialCall:NO];
 
 }
 
@@ -757,16 +762,21 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
                 }];
             } else {
                 for( CNGridViewItemBase* item in affected ) {
-                    NSInteger index = item.index;
-                    NSRect newRect = [self rectForItemAtIndex:index];
-                    [item setFrame:newRect];
+                    [item removeFromSuperview];
+                    [item prepareForReuse];
+                    NSString* cellID = item.identifier;
+                    NSMutableSet *reuseQueue = [reuseableItems objectForKey:cellID];
+                    if (reuseQueue == nil)
+                        reuseQueue = [NSMutableSet set];
+                    [reuseQueue addObject:item];
+                    [reuseableItems setObject:reuseQueue forKey:cellID];
                 }
-            }   
+            }
         }
     }
     
     numberOfItems -= indexes.count;
-    [self refreshGridViewAnimated:animated];
+    [self refreshGridViewAnimated:animated initialCall:NO];
 
 }
 
@@ -1168,7 +1178,7 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
 {
     BOOL animated = (self.frame.size.width == frameRect.size.width ? NO: YES);
     [super setFrame:frameRect];
-    [self refreshGridViewAnimated:animated];
+    [self refreshGridViewAnimated:animated initialCall:YES];
 }
 
 - (void)updateTrackingAreas

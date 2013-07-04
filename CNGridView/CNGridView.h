@@ -239,4 +239,6 @@ typedef BOOL (^CNGridViewSelectItem)(CNGridViewItem *item);
 @property(nonatomic,strong) IBOutlet NSView* headerView;
 @property(nonatomic,assign) BOOL useCenterAlignment;
 
+- (NSRect)rectForItemAtIndex:(NSUInteger)index;
+
 @end

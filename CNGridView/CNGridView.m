@@ -467,6 +467,11 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     return scrollView;
 }
 
+- (void)scrollToBeginningOfDocument:(id)sender {
+    CGPoint top = CGPointMake(0, 0);
+    [self scrollPoint:top];
+}
+
 - (NSRect)clippedRect
 {
     NSClipView* contentView = [[self enclosingScrollView] contentView];

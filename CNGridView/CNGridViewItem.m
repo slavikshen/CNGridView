@@ -147,6 +147,8 @@ extern NSString *CNGridViewDeSelectAllItemsNotification;
     self = [self init];
     if (self) {
         _defaultLayout = layout;
+        _hoverLayout = layout;
+        _selectionLayout = layout;
         _currentLayout = _defaultLayout;
         self.reuseIdentifier = reuseIdentifier;
     }
@@ -221,7 +223,9 @@ extern NSString *CNGridViewDeSelectAllItemsNotification;
     NSRect imageRect = NSZeroRect;
     NSRect textRect = NSZeroRect;
 
-    if (self.currentLayout.visibleContentMask & (CNGridViewItemVisibleContentImage | CNGridViewItemVisibleContentTitle)) {
+    if ( (self.currentLayout.visibleContentMask & (CNGridViewItemVisibleContentImage | CNGridViewItemVisibleContentTitle)) ==
+        (CNGridViewItemVisibleContentImage | CNGridViewItemVisibleContentTitle)
+    ) {
         imageRect = NSMakeRect(((NSWidth(contentRect) - self.itemImage.size.width) / 2) + self.currentLayout.contentInset,
                                self.currentLayout.contentInset + 10,
                                self.itemImage.size.width,
@@ -235,11 +239,12 @@ extern NSString *CNGridViewDeSelectAllItemsNotification;
         [self.itemTitle drawInRect:textRect withAttributes:self.currentLayout.itemTitleTextAttributes];
     }
 
-    else if (self.currentLayout.visibleContentMask & CNGridViewItemVisibleContentImage) {
+    else if ( self.currentLayout.visibleContentMask & CNGridViewItemVisibleContentImage ) {
         imageRect = NSMakeRect(((NSWidth(contentRect) - self.itemImage.size.width) / 2) + self.currentLayout.contentInset,
                                ((NSHeight(contentRect) - self.itemImage.size.height) / 2) + self.currentLayout.contentInset,
                                self.itemImage.size.width,
                                self.itemImage.size.height);
+        [self.itemImage drawInRect:imageRect fromRect:srcRect operation:NSCompositeSourceOver fraction:1.0 respectFlipped:YES hints:nil];
     }
 
     else if (self.currentLayout.visibleContentMask & CNGridViewItemVisibleContentTitle) {

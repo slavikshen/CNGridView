@@ -662,7 +662,7 @@ CNItemPoint CNMakeItemPoint(NSUInteger aColumn, NSUInteger aRow) {
     }
     
     numberOfItems += indexes.count;
-    [self refreshGridViewAnimated:animated initialCall:YES];
+    [self refreshGridViewAnimated:animated initialCall:NO];
 
 }
 

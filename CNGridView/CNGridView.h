@@ -54,12 +54,12 @@ typedef BOOL (^CNGridViewSelectItem)(CNGridViewItem *item);
 /**
  Property for the receiver's delegate.
  */
-@property (nonatomic, weak) IBOutlet id<CNGridViewDelegate> delegate;
+@property (nonatomic, assign) IBOutlet id<CNGridViewDelegate> delegate;
 
 /**
  Property for the receiver's data source.
  */
-@property (nonatomic, weak) IBOutlet id<CNGridViewDataSource> dataSource;
+@property (nonatomic, assign) IBOutlet id<CNGridViewDataSource> dataSource;
 
 
 
@@ -174,7 +174,7 @@ typedef BOOL (^CNGridViewSelectItem)(CNGridViewItem *item);
 /**
  `NSMenu` to use when an item or the selected items are right clicked
  */
-@property (nonatomic, weak) IBOutlet NSMenu *itemContextMenu;
+@property (nonatomic, assign) IBOutlet NSMenu *itemContextMenu;
 
 /**
  Selects all the items in the grid

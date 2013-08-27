@@ -219,31 +219,68 @@ extern NSString *CNGridViewDeSelectAllItemsNotification;
 
 
     NSRect srcRect = NSZeroRect;
-    srcRect.size = self.itemImage.size;
+    NSSize imgSize = self.itemImage.size;
+    srcRect.size = imgSize;
     NSRect imageRect = NSZeroRect;
     NSRect textRect = NSZeroRect;
+    CGFloat contentInset = self.currentLayout.contentInset;
+    
+    CGFloat imgW = imgSize.width;
+    CGFloat imgH = imgSize.height;
+    CGFloat W = NSWidth(contentRect);
+    CGFloat H = NSHeight(contentRect);
 
     if ( (self.currentLayout.visibleContentMask & (CNGridViewItemVisibleContentImage | CNGridViewItemVisibleContentTitle)) ==
         (CNGridViewItemVisibleContentImage | CNGridViewItemVisibleContentTitle)
     ) {
-        imageRect = NSMakeRect(((NSWidth(contentRect) - self.itemImage.size.width) / 2) + self.currentLayout.contentInset,
+        imageRect = NSMakeRect(((W - imgW) / 2) + contentInset,
                                self.currentLayout.contentInset + 10,
-                               self.itemImage.size.width,
-                               self.itemImage.size.height);
+                               imgW,
+                               imgH);
         [self.itemImage drawInRect:imageRect fromRect:srcRect operation:NSCompositeSourceOver fraction:1.0 respectFlipped:YES hints:nil];
 
         textRect = NSMakeRect(contentRect.origin.x + 3,
-                              NSHeight(contentRect) - 20,
-                              NSWidth(contentRect) - 6,
+                              H - 20,
+                              W - 6,
                               14);
         [self.itemTitle drawInRect:textRect withAttributes:self.currentLayout.itemTitleTextAttributes];
     }
 
     else if ( self.currentLayout.visibleContentMask & CNGridViewItemVisibleContentImage ) {
-        imageRect = NSMakeRect(((NSWidth(contentRect) - self.itemImage.size.width) / 2) + self.currentLayout.contentInset,
-                               ((NSHeight(contentRect) - self.itemImage.size.height) / 2) + self.currentLayout.contentInset,
-                               self.itemImage.size.width,
-                               self.itemImage.size.height);
+    
+        if( W >= imgW && H >= imgH ) {
+            
+            imageRect = NSMakeRect(((W - imgW) / 2) + contentInset,
+                                   ((H - imgH) / 2) + contentInset,
+                                   imgW,
+                                   imgH);
+            
+        } else if ( 0 < W && 0 < H && imgW > 0 && imgH > 0 ) {
+
+            CGFloat kView = H/W;
+            CGFloat kImg = imgH/imgW;
+            
+            if( kView > kImg ) {
+                // use W
+                CGFloat newH = W*kImg;
+                CGFloat y = floorf((H-newH)/2);
+                imageRect.size.width = W;
+                imageRect.size.height = ceilf(newH);
+                imageRect.origin.x = 0;
+                imageRect.origin.y = y;
+                
+            } else {
+                // use H
+                
+                CGFloat newW = H/kImg;
+                CGFloat x = floorf((W-newW)/2);
+                imageRect.size.width = newW;
+                imageRect.size.height = H;
+                imageRect.origin.x = x;
+                imageRect.origin.y = 0;
+            }
+        
+        }
         [self.itemImage drawInRect:imageRect fromRect:srcRect operation:NSCompositeSourceOver fraction:1.0 respectFlipped:YES hints:nil];
     }
 
